@@ -5,6 +5,33 @@ import hashlib
 import json
 from time import time
 from typing import List, Dict, Any
+from cryptography.exceptions import InvalidSignature
+from .quantum_security import QuantumSecurity, SecurityError
+
+class Transaction:
+    def __init__(self, sender, recipient, amount, signature):
+        self.sender = sender
+        self.recipient = recipient
+        self.amount = amount
+        self.signature = signature
+
+    def to_dict(self):
+        return {
+            "sender": self.sender,
+            "recipient": self.recipient,
+            "amount": self.amount,
+            "signature": self.signature
+        }
+
+    def verify_transaction_signature(self):
+        """
+        Verifies the signature of the transaction.
+        """
+        try:
+            sender_public_key = QuantumSecurity.deserialize_public_key(self.sender)
+            return QuantumSecurity.verify_signature(sender_public_key, str(self.to_dict()), self.signature)
+        except (InvalidSignature, SecurityError):
+            return False
 
 class Block:
     def __init__(self, index: int, transactions: List[Dict[str, Any]], timestamp: float, previous_hash: str, nonce: int = 0):
@@ -105,4 +132,54 @@ class Blockchain:
         self.add_block(new_block, proof)
         self.unconfirmed_transactions = []
         return new_block.index
+
+    def add_new_transaction(self, transaction: Transaction):
+        """
+        Adds a new transaction to the unconfirmed transactions pool after verification.
+        """
+        if transaction.verify_transaction_signature():
+            self.unconfirmed_transactions.append(transaction.to_dict())
+        else:
+            raise SecurityError("Invalid transaction signature.")
+
+    def execute_smart_contract(self, contract_address, action, params):
+        """
+        Executes a smart contract action on the blockchain.
+        """
+        # Placeholder for smart contract execution logic.
+        # Would involve fetching the contract by address, executing the specified action
+        # with given parameters, and handling state changes.
+        pass
+
+    # Update the mine method to include smart contract execution
+    def mine(self):
+        """
+        Enhanced mining process that also executes smart contracts included in transactions.
+        """
+        if not self.unconfirmed_transactions:
+            return False
+
+        # Placeholder for executing smart contracts within unconfirmed transactions
+        for transaction in self.unconfirmed_transactions:
+            if transaction.get("is_contract"):
+                self.execute_smart_contract(transaction["contract_address"],
+                                            transaction["action"], transaction["params"])
+
+        # Proceed with existing mining process
+        # Additional steps...
+
+# Consensus mechanism flexibility
+class ConsensusMechanism:
+    @staticmethod
+    def proof_of_work(blockchain, block):
+        # Implement PoW consensus algorithm
+        pass
+
+    @staticmethod
+    def proof_of_stake(blockchain, block):
+        # Implement PoS consensus algorithm
+        pass
+
+# The blockchain can now use a flexible consensus mechanism
+blockchain.consensus_mechanism = ConsensusMechanism.proof_of_work  # or .proof_of_stake
 
